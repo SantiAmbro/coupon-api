@@ -1,5 +1,6 @@
 package challenge.service;
 
+import challenge.exception.InsufficientAmountException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,9 +10,8 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.*;
-import java.util.function.Supplier;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Service
 public class CouponApiService {
@@ -43,11 +43,18 @@ public class CouponApiService {
     }
 
     private List<String> calculate(Map<String, Float> items, Float amount) {
-        boolean b = items.values().stream().anyMatch(v -> v > amount);
-        if(b){
-            throw new RuntimeException();
-        }
+        Map<String , Float> itemsSorted = sortItemsByPrice(items);
+        AtomicReference<Float> total = new AtomicReference<>(0f);
         List<String> freeItems = new ArrayList<>();
+        itemsSorted.forEach((key, value) -> {
+            Float aFloat = total.updateAndGet(v -> v + value);
+            if (aFloat <= amount) {
+                freeItems.add(key);
+            }
+        });
+        if(freeItems.isEmpty()){
+            throw new InsufficientAmountException();
+        }
         return freeItems;
     }
 
@@ -63,9 +70,16 @@ public class CouponApiService {
         return couponItems;
     }
 
-    private List<?> removeDuplicatesFromList(List<?> list){
+    private List<?> removeDuplicatesFromList(List<?> list) {
         return list.stream()
                 .distinct()
                 .collect(Collectors.toList());
+    }
+
+    private Map<String, Float> sortItemsByPrice(Map<String, Float> items) {
+        return items.entrySet().stream()
+                .sorted(Map.Entry.comparingByValue(Comparator.naturalOrder()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
+                        (oldValue, newValue) -> oldValue, LinkedHashMap::new));
     }
 }

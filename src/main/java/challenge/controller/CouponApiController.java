@@ -25,8 +25,9 @@ public class CouponApiController {
     }
 
     @PostMapping
-    public ResponseEntity<Map<String, Object>> applyCoupon(@RequestBody Map<String, Object> body) throws JsonProcessingException {
-        return (ResponseEntity<Map<String, Object>>) couponApiService.applyCoupon(body);
+    @ResponseBody
+    public Map<String, Object> applyCoupon(@RequestBody Map<String, Object> body) throws JsonProcessingException {
+        return couponApiService.applyCoupon(body);
     }
 }
 
