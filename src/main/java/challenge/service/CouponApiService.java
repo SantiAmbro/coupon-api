@@ -23,6 +23,7 @@ public class CouponApiService {
     private static final String ITEM_IDS_KEY = "item_ids";
     private static final String AMOUNT_KEY = "amount";
     private static final String TOTAL_KEY = "total";
+    private Float totalApplied;
 
     public Map<String, Float> getMLItemsPrice(String ids) throws JsonProcessingException {
         RestTemplate restTemplate = new RestTemplate();
@@ -42,7 +43,7 @@ public class CouponApiService {
         return items;
     }
 
-    private List<String> calculate(Map<String, Float> items, Float amount) {
+    public List<String> calculate(Map<String, Float> items, Float amount) {
         Map<String , Float> itemsSorted = sortItemsByPrice(items);
         AtomicReference<Float> total = new AtomicReference<>(0f);
         List<String> freeItems = new ArrayList<>();
@@ -50,11 +51,13 @@ public class CouponApiService {
             Float aFloat = total.updateAndGet(v -> v + value);
             if (aFloat <= amount) {
                 freeItems.add(key);
+                totalApplied = aFloat;
             }
         });
         if(freeItems.isEmpty()){
             throw new InsufficientAmountException();
         }
+        freeItems.sort(Comparator.naturalOrder());
         return freeItems;
     }
 
@@ -66,7 +69,7 @@ public class CouponApiService {
         Map<String, Float> items = getMLItemsPrice(itemsIds);
         List<String> freeItems = calculate(items, amount);
         couponItems.put(ITEM_IDS_KEY, freeItems);
-        couponItems.put(TOTAL_KEY, amount);
+        couponItems.put(TOTAL_KEY, totalApplied);
         return couponItems;
     }
 
